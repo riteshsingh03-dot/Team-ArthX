@@ -57,6 +57,36 @@ p { margin: 0 0 10px; }
   top: 0;
   z-index: 1000;
 }
+
+/* Server wake-up banner */
+.server-wake-banner {
+  background: #FBF0DC;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+}
+.server-wake-banner.ready {
+  background: #E7F3E9;
+  color: var(--growth);
+}
+.server-wake-banner .wake-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent); flex-shrink: 0;
+  animation: wakePulse 1s ease-in-out infinite;
+}
+.server-wake-banner.ready .wake-dot {
+  background: var(--growth);
+  animation: none;
+}
+@keyframes wakePulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+
 .header-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
 .header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .brand { display: flex; align-items: center; gap: 10px; }

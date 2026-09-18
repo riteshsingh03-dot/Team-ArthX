@@ -264,12 +264,53 @@ function updateLanguage(langKey) {
   });
 }
 
+async function checkServerHealth() {
+  const banner = document.getElementById("serverWakeBanner");
+  const bannerText = document.getElementById("serverWakeBannerText");
+  if (!banner || !bannerText) return;
+
+  let bannerShown = false;
+  const showTimer = setTimeout(() => {
+    bannerShown = true;
+    banner.classList.remove("hidden");
+  }, 1200); // only show banner if it's actually slow (avoids flash when already warm)
+
+  const maxAttempts = 20; // ~60s total with 3s gaps
+  let attempt = 0;
+
+  while (attempt < maxAttempts) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/health`, { cache: "no-store" });
+      if (res.ok) {
+        clearTimeout(showTimer);
+        if (bannerShown) {
+          bannerText.textContent = "Server is ready!";
+          banner.classList.add("ready");
+          setTimeout(() => banner.classList.add("hidden"), 1500);
+        } else {
+          banner.classList.add("hidden");
+        }
+        return;
+      }
+    } catch (e) {
+      // server likely still waking up, keep retrying
+    }
+    attempt++;
+    await new Promise(r => setTimeout(r, 3000));
+  }
+
+  clearTimeout(showTimer);
+  bannerText.textContent = "Having trouble reaching the server. Please refresh in a moment.";
+  banner.classList.remove("hidden");
+}
+
 // Global Application Initialization
 document.addEventListener("DOMContentLoaded", () => {
   setupLanguage();
   setupUI();
   setupVoice();
   updateLanguage(currentLang);
+  checkServerHealth();
 });
 
 function setupLanguage() {

@@ -320,3 +320,7 @@ def sector_scan(req: SectorScanRequest):
         )
     except InvalidFinancialInput as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
