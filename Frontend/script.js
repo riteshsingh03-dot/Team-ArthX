@@ -331,9 +331,25 @@ function setupUI() {
   const dateEl = document.getElementById("journalDate");
   if (dateEl) dateEl.valueAsDate = new Date();
 
-  loadSeededVillages();
-  const villageSelect = document.getElementById("villageSelect");
-  if (villageSelect) villageSelect.addEventListener("change", handleVillageSelectChange);
+  loadSeededLocations();
+  document.getElementById("stateSelect")?.addEventListener("change", handleStateSelectChange);
+  document.getElementById("districtSelect")?.addEventListener("change", handleDistrictSelectChange);
+  document.getElementById("blockSelect")?.addEventListener("change", handleBlockSelectChange);
+  document.getElementById("villageSelectSeed")?.addEventListener("change", handleVillageSelectSeedChange);
+
+  const manualToggleBtn = document.getElementById("manualLocationToggle");
+  if (manualToggleBtn) {
+    manualToggleBtn.addEventListener("click", () => {
+      const isManualHidden = document.getElementById("manualLocationGroup").style.display === "none";
+      if (isManualHidden) {
+        showManualLocationFallback();
+        manualToggleBtn.textContent = "Use seeded location list instead";
+      } else {
+        hideManualLocationFallback();
+        manualToggleBtn.textContent = "My village/town isn't listed — enter manually";
+      }
+    });
+  }
 
   // Floating Chat Toggle Logic
   const chatToggleBtn = document.getElementById("chatToggleBtn");
@@ -531,44 +547,136 @@ function setupVoice() {
   recognition.onend = () => { if (voiceBtn) voiceBtn.classList.remove("listening"); };
 }
 
-async function loadSeededVillages() {
-  const select = document.getElementById("villageSelect");
-  if (!select) return;
+let seededLocations = [];
+
+async function loadSeededLocations() {
+  const stateSelect = document.getElementById("stateSelect");
+  if (!stateSelect) return;
   try {
     const response = await fetch(`${API_BASE_URL}/locations`);
-    const locations = await response.json();
+    seededLocations = await response.json();
 
-    select.innerHTML = "";
-    const otherOpt = document.createElement("option");
-    otherOpt.value = "";
-    otherOpt.textContent = t('otherNotListed');
-    select.appendChild(otherOpt);
-
-    const byDistrict = {};
-    locations.forEach(loc => {
-      const key = loc.district || "Other";
-      if (!byDistrict[key]) byDistrict[key] = [];
-      byDistrict[key].push(loc);
-    });
-
-    Object.keys(byDistrict).sort().forEach(district => {
-      const group = document.createElement("optgroup");
-      group.label = district;
-      byDistrict[district].forEach(loc => {
-        const opt = document.createElement("option");
-        opt.value = loc.id;
-        opt.textContent = loc.village_name;
-        opt.dataset.state = loc.state || "";
-        opt.dataset.district = loc.district || "";
-        opt.dataset.block = loc.block || "";
-        opt.dataset.village = loc.village_name || "";
-        group.appendChild(opt);
-      });
-      select.appendChild(group);
-    });
+    const states = [...new Set(seededLocations.map(l => l.state).filter(Boolean))].sort();
+    stateSelect.innerHTML = `<option value="">Select State</option>` +
+      states.map(s => `<option value="${s}">${s}</option>`).join("");
   } catch (e) {
-    select.innerHTML = `<option value="">${t('otherNotListed')}</option>`;
+    stateSelect.innerHTML = `<option value="">Could not load — use manual entry below</option>`;
   }
+}
+
+function resetDependentSelects(fromLevel) {
+  const districtSelect = document.getElementById("districtSelect");
+  const blockSelect = document.getElementById("blockSelect");
+  const villageSelect = document.getElementById("villageSelectSeed");
+
+  if (["state", "district"].includes(fromLevel)) {
+    districtSelect.innerHTML = `<option value="">Select state first</option>`;
+    districtSelect.disabled = true;
+  }
+  if (["state", "district", "block"].includes(fromLevel)) {
+    blockSelect.innerHTML = `<option value="">(no block data)</option>`;
+    blockSelect.disabled = true;
+  }
+  villageSelect.innerHTML = `<option value="">Select district first</option>`;
+  villageSelect.disabled = true;
+  document.getElementById("locationIdInput").value = "";
+}
+
+function handleStateSelectChange() {
+  const state = document.getElementById("stateSelect").value;
+  resetDependentSelects("district");
+  if (!state) return;
+
+  const districts = [...new Set(
+    seededLocations.filter(l => l.state === state).map(l => l.district).filter(Boolean)
+  )].sort();
+
+  const districtSelect = document.getElementById("districtSelect");
+  districtSelect.innerHTML = `<option value="">Select District</option>` +
+    districts.map(d => `<option value="${d}">${d}</option>`).join("");
+  districtSelect.disabled = false;
+}
+
+function handleDistrictSelectChange() {
+  const state = document.getElementById("stateSelect").value;
+  const district = document.getElementById("districtSelect").value;
+  resetDependentSelects("block");
+  if (!district) return;
+
+  const matches = seededLocations.filter(l => l.state === state && l.district === district);
+  const blocks = [...new Set(matches.map(l => l.block).filter(Boolean))].sort();
+  const blockSelect = document.getElementById("blockSelect");
+
+  if (blocks.length > 0) {
+    blockSelect.innerHTML = `<option value="">Select Block</option>` +
+      blocks.map(b => `<option value="${b}">${b}</option>`).join("");
+    blockSelect.disabled = false;
+  } else {
+    // no block-level data for this district -- skip straight to village
+    blockSelect.innerHTML = `<option value="">(no block data for this district)</option>`;
+    blockSelect.disabled = true;
+    populateVillageSelect(matches);
+  }
+}
+
+function handleBlockSelectChange() {
+  const state = document.getElementById("stateSelect").value;
+  const district = document.getElementById("districtSelect").value;
+  const block = document.getElementById("blockSelect").value;
+
+  const matches = seededLocations.filter(l =>
+    l.state === state && l.district === district && (block ? l.block === block : true)
+  );
+  populateVillageSelect(matches);
+}
+
+function populateVillageSelect(matches) {
+  const villageSelect = document.getElementById("villageSelectSeed");
+  const sorted = [...matches].sort((a, b) => a.village_name.localeCompare(b.village_name));
+
+  villageSelect.innerHTML = `<option value="">Select Village / City</option>` +
+    sorted.map(l => `<option value="${l.id}">${l.village_name}</option>`).join("");
+  villageSelect.disabled = false;
+  document.getElementById("locationIdInput").value = "";
+}
+
+function handleVillageSelectSeedChange() {
+  document.getElementById("locationIdInput").value = document.getElementById("villageSelectSeed").value || "";
+}
+
+function showManualLocationFallback() {
+  document.getElementById("manualLocationGroup").style.display = "grid";
+  document.getElementById("locationSelectGroup").style.display = "none";
+  document.getElementById("unseededHint").style.display = "block";
+  document.getElementById("locationIdInput").value = "";
+}
+
+function hideManualLocationFallback() {
+  document.getElementById("manualLocationGroup").style.display = "none";
+  document.getElementById("locationSelectGroup").style.display = "grid";
+  document.getElementById("unseededHint").style.display = "none";
+}
+
+function getLocationFormValues() {
+  const manualVisible = document.getElementById("manualLocationGroup").style.display !== "none";
+
+  if (manualVisible) {
+    return {
+      state: document.getElementById("stateInput").value.trim(),
+      district: document.getElementById("districtInput").value.trim(),
+      location_id: null
+    };
+  }
+
+  const stateSel = document.getElementById("stateSelect");
+  const districtSel = document.getElementById("districtSelect");
+  const villageSel = document.getElementById("villageSelectSeed");
+
+  return {
+    state: stateSel ? stateSel.value : "",
+    district: districtSel ? districtSel.value : "",
+    location_id: villageSel && villageSel.value ? parseInt(villageSel.value, 10) : null
+  };
 }
 
 function formatMarkdownToHTML(text) {
@@ -596,28 +704,22 @@ function appendChatBubble(text, sender) {
 async function submitWizardToFastAPI() {
   const marginInput = document.getElementById("marginInput");
   const categorySelect = document.getElementById("categorySelect");
-  
+
   const marginCapital = parseFloat(marginInput ? marginInput.value : 0);
   const category = categorySelect ? categorySelect.value : "dairy";
-  
-  const stateInput = document.getElementById("stateInput");
-  const districtInput = document.getElementById("districtInput");
-  const stateVal = stateInput ? stateInput.value.trim() : "";
-  const districtVal = districtInput ? districtInput.value.trim() : "";
 
   if (!marginCapital) return alert("Please enter a valid margin capital amount.");
 
-    const locationIdEl = document.getElementById("locationIdInput");
-  const locationIdVal = locationIdEl && locationIdEl.value ? parseInt(locationIdEl.value, 10) : null;
+  const loc = getLocationFormValues();
 
   const payload = {
-    state: stateVal || "Maharashtra", 
-    district: districtVal || null,
+    state: loc.state || "Maharashtra",
+    district: loc.district || null,
     business_category: category,
     margin_pct: 0.10,
     margin_capital: marginCapital,
     experience_level: "beginner",
-    location_id: Number.isInteger(locationIdVal) ? locationIdVal : null
+    location_id: loc.location_id
   };
 
   await fetchAndRenderResult("/feasibility", payload);
