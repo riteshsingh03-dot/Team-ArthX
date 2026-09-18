@@ -46,7 +46,7 @@ const i18n = {
     catGrocery: "Grocery Store",
     q3: "4. Your Margin Capital (₹)",
     phMargin: "e.g. 50000",
-    calcBtn: "Generate AI Report",
+    calcBtn: "Generate Report",
     reportTitle: "Your Business & Financial Report",
     listenBtn: "Listen",
     downloadBtn: "Download / Print",
