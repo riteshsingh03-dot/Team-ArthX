@@ -75,12 +75,20 @@
           <button type="button" class="pill-btn" data-area="rural" aria-pressed="true" data-i18n="ruralBtn">Village / Gram Panchayat</button>
           <button type="button" class="pill-btn" data-area="urban" aria-pressed="false" data-i18n="urbanBtn">Town / City</button>
         </div>
-        <div class="input-grid input-grid-4">
-          <input type="text" id="stateInput" class="form-input" data-i18n-ph="phState" placeholder="State (e.g. Uttar Pradesh)">
-          <input type="text" id="districtInput" class="form-input" data-i18n-ph="phDistrict" placeholder="District">
-          <input type="text" id="blockInput" class="form-input" data-i18n-ph="phBlock" placeholder="Block / Tehsil">
-          <input type="text" id="villageInput" class="form-input" data-i18n-ph="phVillage" placeholder="Village / City Name">
-        </div>
+          <select id="villageSelect" class="form-select" style="margin-bottom:10px;">
+            <option value="" data-i18n="loadingVillages">Loading seeded villages…</option>
+          </select>
+          <p class="field-hint" id="unseededHint" style="display:none; margin-bottom:10px;" data-i18n="unseededHint">
+          This location isn't in our seeded data yet — your loan &amp; scheme report will still work, but live competitor, mandi price, and target audience insights won't be available for it.
+          </p>
+
+          <div class="input-grid input-grid-4">
+            <input type="text" id="stateInput" class="form-input" data-i18n-ph="phState" placeholder="State (e.g. Uttar Pradesh)">
+            <input type="text" id="districtInput" class="form-input" data-i18n-ph="phDistrict" placeholder="District">
+            <input type="text" id="blockInput" class="form-input" data-i18n-ph="phBlock" placeholder="Block / Tehsil">
+            <input type="text" id="villageInput" class="form-input" data-i18n-ph="phVillage" placeholder="Village / City Name">
+          </div>
+          <input type="hidden" id="locationIdInput" value="">
       </div>
 
       <div class="step-card">

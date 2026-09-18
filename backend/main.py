@@ -30,6 +30,7 @@ from engines.market.competitor_service import (
     get_stored_competitors,
     resolve_location_id,
     get_location,
+    list_all_locations,
 )
 
 app = FastAPI()
@@ -289,3 +290,7 @@ def simulate_survival_endpoint(req: SurvivalSimRequest):
         )
     except InvalidFinancialInput as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/locations")
+def get_locations():
+    return list_all_locations()

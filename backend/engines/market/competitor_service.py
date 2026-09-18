@@ -13,6 +13,15 @@ def get_location(location_id: int) -> dict:
         raise ValueError(f"Location id={location_id} has no lat/lon on file")
     return dict(row)
 
+def list_all_locations() -> list[dict]:
+    query = text("""
+        SELECT id, village_name, block, district, state
+        FROM locations
+        ORDER BY state, district, village_name
+    """)
+    with engine.connect() as conn:
+        rows = conn.execute(query).mappings().all()
+    return [dict(r) for r in rows]
 
 def refresh_competitors(location_id: int, business_category: str, radius_m: int = 5000) -> dict:
     """

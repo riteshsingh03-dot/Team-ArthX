@@ -37,6 +37,9 @@ const i18n = {
     phDistrict: "District",
     phBlock: "Block / Tehsil",
     phVillage: "Village / City Name",
+    loadingVillages: "Loading seeded villages…",
+    otherNotListed: "Other / Not listed (enter manually below)",
+    unseededHint: "This location isn't in our seeded data yet — your loan & scheme report will still work, but live competitor, mandi price, and target audience insights won't be available for it.",
     q2: "3. Business Category",
     catDairy: "Dairy Farming",
     catTailor: "Tailoring",
@@ -328,6 +331,10 @@ function setupUI() {
   const dateEl = document.getElementById("journalDate");
   if (dateEl) dateEl.valueAsDate = new Date();
 
+  loadSeededVillages();
+  const villageSelect = document.getElementById("villageSelect");
+  if (villageSelect) villageSelect.addEventListener("change", handleVillageSelectChange);
+
   // Floating Chat Toggle Logic
   const chatToggleBtn = document.getElementById("chatToggleBtn");
   const navChatBtn = document.getElementById("navChatBtn");
@@ -524,6 +531,46 @@ function setupVoice() {
   recognition.onend = () => { if (voiceBtn) voiceBtn.classList.remove("listening"); };
 }
 
+async function loadSeededVillages() {
+  const select = document.getElementById("villageSelect");
+  if (!select) return;
+  try {
+    const response = await fetch(`${API_BASE_URL}/locations`);
+    const locations = await response.json();
+
+    select.innerHTML = "";
+    const otherOpt = document.createElement("option");
+    otherOpt.value = "";
+    otherOpt.textContent = t('otherNotListed');
+    select.appendChild(otherOpt);
+
+    const byDistrict = {};
+    locations.forEach(loc => {
+      const key = loc.district || "Other";
+      if (!byDistrict[key]) byDistrict[key] = [];
+      byDistrict[key].push(loc);
+    });
+
+    Object.keys(byDistrict).sort().forEach(district => {
+      const group = document.createElement("optgroup");
+      group.label = district;
+      byDistrict[district].forEach(loc => {
+        const opt = document.createElement("option");
+        opt.value = loc.id;
+        opt.textContent = loc.village_name;
+        opt.dataset.state = loc.state || "";
+        opt.dataset.district = loc.district || "";
+        opt.dataset.block = loc.block || "";
+        opt.dataset.village = loc.village_name || "";
+        group.appendChild(opt);
+      });
+      select.appendChild(group);
+    });
+  } catch (e) {
+    select.innerHTML = `<option value="">${t('otherNotListed')}</option>`;
+  }
+}
+
 function formatMarkdownToHTML(text) {
 
   const escaped = text
@@ -560,13 +607,17 @@ async function submitWizardToFastAPI() {
 
   if (!marginCapital) return alert("Please enter a valid margin capital amount.");
 
+    const locationIdEl = document.getElementById("locationIdInput");
+  const locationIdVal = locationIdEl && locationIdEl.value ? parseInt(locationIdEl.value, 10) : null;
+
   const payload = {
     state: stateVal || "Maharashtra", 
     district: districtVal || null,
     business_category: category,
     margin_pct: 0.10,
     margin_capital: marginCapital,
-    experience_level: "beginner"
+    experience_level: "beginner",
+    location_id: Number.isInteger(locationIdVal) ? locationIdVal : null
   };
 
   await fetchAndRenderResult("/feasibility", payload);
