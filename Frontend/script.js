@@ -313,6 +313,7 @@ function setupUI() {
 
   // Event Listeners for primary buttons
   document.getElementById("calcBtn")?.addEventListener("click", submitWizardToFastAPI);
+  document.getElementById("compareSectorsBtn")?.addEventListener("click", submitSectorScanToFastAPI);
   document.getElementById("chatBtn")?.addEventListener("click", submitChatToFastAPI);
   document.getElementById("downloadBtn")?.addEventListener("click", () => window.print());
   
@@ -725,6 +726,56 @@ async function submitWizardToFastAPI() {
   await fetchAndRenderResult("/feasibility", payload);
 }
 
+async function submitSectorScanToFastAPI() {
+  const marginInput = document.getElementById("marginInput");
+  const marginCapital = parseFloat(marginInput ? marginInput.value : 0);
+
+  if (!marginCapital) return alert("Please enter your available margin capital first.");
+
+  const loc = getLocationFormValues();
+  const marginPct = 0.10;
+  const projectCost = marginCapital / marginPct;
+
+  const payload = {
+    project_cost: projectCost,
+    margin_pct: marginPct,
+    location_id: loc.location_id,
+    district: loc.district || null,
+    village_name: null,
+    experience_level: "beginner"
+  };
+
+  const sectionEl = document.getElementById("sectorScanSection");
+  const loader = document.getElementById("sectorScanLoading");
+  const contentEl = document.getElementById("sectorScanContent");
+
+  if (sectionEl) sectionEl.hidden = false;
+  if (loader) loader.hidden = false;
+  if (contentEl) contentEl.innerHTML = "";
+  if (sectionEl) sectionEl.scrollIntoView({ behavior: "smooth" });
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/sector-scan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || "Server error");
+    }
+
+    const data = await response.json();
+    if (loader) loader.hidden = true;
+    renderSectorScan(data);
+
+  } catch (err) {
+    if (loader) loader.hidden = true;
+    if (contentEl) contentEl.innerHTML = `<p style="color:red">Error: ${err.message}</p>`;
+  }
+}
+
 // Chat AI Submission Handler
 async function submitChatToFastAPI() {
   const inputEl = document.getElementById("chatInput");
@@ -849,6 +900,60 @@ function renderReport(data) {
   if (data.competitor_mapping && data.competitor_mapping.nearest && data.competitor_mapping.nearest.length > 0) {
     renderCompetitorMap(data.competitor_mapping.nearest);
   }
+}
+
+function renderSectorScan(results) {
+  const contentEl = document.getElementById("sectorScanContent");
+  if (!contentEl) return;
+
+  if (!Array.isArray(results) || results.length === 0) {
+    contentEl.innerHTML = `<p><em>No sector data available for this location yet.</em></p>`;
+    return;
+  }
+
+  const categoryLabels = {
+    dairy: "Dairy Farming",
+    retail: "Retail",
+    textiles: "Textiles",
+    food_processing: "Food Processing",
+    handicrafts: "Handicrafts"
+  };
+
+  contentEl.innerHTML = results.map((r, index) => {
+    const label = categoryLabels[r.business_category] || r.business_category;
+    const audience = r.audience_mapping;
+    const competitor = r.competitor_mapping;
+    const notes = r.category_notes;
+
+    const audienceLine = audience
+      ? `Estimated customers for you: <strong>${audience.estimated_customers_for_you}</strong> (out of ~${audience.addressable_households} addressable households)`
+      : `<em>No population/audience data available for this location.</em>`;
+
+    const competitorLine = competitor && competitor.competitor_count !== null
+      ? `Nearby competitors: <strong>${competitor.competitor_count}</strong>`
+      : `<em>Competitor data unavailable.</em>`;
+
+    let swotBlock = "";
+    if (r.swot) {
+      swotBlock = `
+        <hr style="border:0; border-top:1px solid #E2E8F0; margin:12px 0;">
+        <p><strong>Strengths:</strong> ${r.swot.strengths || 'N/A'}</p>
+        <p><strong>Weaknesses:</strong> ${r.swot.weaknesses || 'N/A'}</p>
+        <p><strong>Opportunities:</strong> ${r.swot.opportunities || 'N/A'}</p>
+        <p><strong>Threats:</strong> ${r.swot.threats || 'N/A'}</p>
+      `;
+    }
+
+    return `
+      <div class="step-card" style="border-left: 4px solid var(--primary, #0D9488); margin-bottom:14px;">
+        <h3 style="margin-top:0">${index + 1}. ${label}</h3>
+        <p>${audienceLine}</p>
+        <p>${competitorLine}</p>
+        <p style="font-size:13px; color:var(--text-light);">${notes?.seasonal_notes || ''}</p>
+        ${swotBlock}
+      </div>
+    `;
+  }).join('');
 }
 
 // Business Journal Handlers

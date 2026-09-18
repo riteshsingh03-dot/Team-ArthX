@@ -33,6 +33,8 @@ from engines.market.competitor_service import (
     list_all_locations,
 )
 
+from engines.market.sector_ranking import rank_sectors
+
 app = FastAPI()
 
 # --- ENABLE CORS FOR FRONTEND CONNECTION ---
@@ -89,6 +91,15 @@ class FeasibilityRequest(BaseModel):
     margin_capital: float | None = None
     experience_level: str = "intermediate"
     location_id: int | None = None
+
+class SectorScanRequest(BaseModel):
+    project_cost: float
+    margin_pct: float = 0.10
+    location_id: int | None = None
+    district: str | None = None
+    village_name: str | None = None
+    experience_level: str = "intermediate"
+    categories: list[str] | None = None
 
 def get_competitor_mapping(location_id: int | None, business_category: str | None) -> dict | None:
     if location_id is None or business_category is None:
@@ -294,3 +305,18 @@ def simulate_survival_endpoint(req: SurvivalSimRequest):
 @app.get("/locations")
 def get_locations():
     return list_all_locations()
+
+@app.post("/sector-scan")
+def sector_scan(req: SectorScanRequest):
+    try:
+        return rank_sectors(
+            location_id=req.location_id,
+            project_cost=req.project_cost,
+            margin_pct=req.margin_pct,
+            district=req.district,
+            village_name=req.village_name,
+            categories=req.categories,
+            experience_level=req.experience_level,
+        )
+    except InvalidFinancialInput as e:
+        raise HTTPException(status_code=400, detail=str(e))
