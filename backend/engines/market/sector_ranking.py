@@ -4,6 +4,7 @@ from engines.financial.loan import calculate_loan_structure
 from engines.market.mandi_price_service import get_mandi_price_mapping
 from engines.market.audience_service import get_target_audience_mapping
 from engines.market.competitor_service import get_stored_competitors, refresh_competitors, get_location
+from google.genai.errors import ServerError
 
 ALL_CATEGORIES = list(BUSINESS_CATEGORY_NOTES.keys())
 
@@ -85,20 +86,24 @@ def rank_sectors(
     results.sort(key=lambda r: r["fit_score"], reverse=True)
 
     for r in results[:top_n_for_swot]:
-        r["swot"] = generate_swot(
-            business_category=r["business_category"],
-            project_cost=project_cost,
-            loan_amount=loan["loan_amount"],
-            location={
-                "village_name": village_name,
-                "block": None,
-                "district": district,
-                "state": None,
-            },
-            experience_level=experience_level,
-            competitor_mapping=r["competitor_mapping"],
-            mandi_mapping=r["mandi_mapping"],
-            audience_mapping=r["audience_mapping"],
-        )
+        try:
+            r["swot"] = generate_swot(
+                business_category=r["business_category"],
+                project_cost=project_cost,
+                loan_amount=loan["loan_amount"],
+                location={
+                    "village_name": village_name,
+                    "block": None,
+                    "district": district,
+                    "state": None,
+                },
+                experience_level=experience_level,
+                competitor_mapping=r["competitor_mapping"],
+                mandi_mapping=r["mandi_mapping"],
+                audience_mapping=r["audience_mapping"],
+            )
+        except ServerError:
+            r["swot"] = None
+            r["swot_error"] = "AI analysis temporarily unavailable for this category. Try again in a moment."
 
     return results

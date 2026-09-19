@@ -791,12 +791,20 @@ async function submitSectorScanToFastAPI() {
   const contentEl = document.getElementById("sectorScanContent");
 
   if (sectionEl) sectionEl.hidden = false;
-  if (loader) loader.hidden = false;
-  if (contentEl) contentEl.innerHTML = "";
-  if (sectionEl) sectionEl.scrollIntoView({ behavior: "smooth" });
+if (loader) loader.hidden = false;
+if (contentEl) contentEl.innerHTML = "";
+if (sectionEl) sectionEl.scrollIntoView({ behavior: "smooth" });
 
-  try {
-    const response = await fetch(`${API_BASE_URL}/sector-scan`, {
+let elapsedSeconds = 0;
+const loadingTextEl = document.getElementById("sectorScanLoadingText");
+if (loadingTextEl) loadingTextEl.textContent = `Loading (0s)...`;
+const scanTimer = setInterval(() => {
+  elapsedSeconds++;
+  if (loadingTextEl) loadingTextEl.textContent = `Loading (${elapsedSeconds}s)...`;
+}, 1000);
+
+try {
+  const response = await fetch(`${API_BASE_URL}/sector-scan`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -807,11 +815,13 @@ async function submitSectorScanToFastAPI() {
       throw new Error(errorData.detail || "Server error");
     }
 
-    const data = await response.json();
+        const data = await response.json();
+    clearInterval(scanTimer);
     if (loader) loader.hidden = true;
     renderSectorScan(data);
 
   } catch (err) {
+    clearInterval(scanTimer);
     if (loader) loader.hidden = true;
     if (contentEl) contentEl.innerHTML = `<p style="color:red">Error: ${err.message}</p>`;
   }

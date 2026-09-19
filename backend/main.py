@@ -320,6 +320,8 @@ def sector_scan(req: SectorScanRequest):
         )
     except InvalidFinancialInput as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except ServerError:
+        raise HTTPException(status_code=503, detail="AI service is temporarily busy. Please try again in a moment.")
 
 @app.get("/health")
 def health_check():

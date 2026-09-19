@@ -153,7 +153,11 @@
         <div class="result-header">
           <h2>Compare Business Options</h2>
         </div>
-        <div id="sectorScanLoading" class="spinner" hidden></div>
+        <div id="sectorScanLoading" class="scan-loading-box" hidden>
+          <div class="spinner"></div>
+          <p id="sectorScanLoadingText" class="scan-loading-text">Loading (0s)...</p>
+          <p class="scan-loading-hint">It may take a while — we're checking market data across several business types.</p>
+        </div>
         <div id="sectorScanContent"></div>
       </div>
     </section>
