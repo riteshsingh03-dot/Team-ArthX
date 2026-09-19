@@ -5,9 +5,20 @@ from google import genai
 from google.genai import types
 from engines.llm.business_knowledge import get_category_notes
 from engines.llm.explanation import EXPERIENCE_STYLE_GUIDANCE
+import time
+from google.genai.errors import ServerError
 
 load_dotenv()
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+
+def call_gemini_with_retry(fn, *args, retries=2, base_delay=3, **kwargs):
+    for attempt in range(retries + 1):
+        try:
+            return fn(*args, **kwargs)
+        except ServerError:
+            if attempt == retries:
+                raise
+            time.sleep(base_delay * (attempt + 1))
 
 SWOT_PROMPT = """
 You are generating a SWOT analysis (Strengths, Weaknesses, Opportunities, Threats)
@@ -100,7 +111,8 @@ def generate_swot(
         supply_chain_risks=category_notes["supply_chain_risks"],
     ) + f"\n\nSTYLE INSTRUCTION: {style_instruction}"
 
-    response = client.models.generate_content(
+    response = call_gemini_with_retry(
+        client.models.generate_content,
         model="gemini-3.6-flash",
         contents=prompt,
         config=types.GenerateContentConfig(response_mime_type="application/json"),

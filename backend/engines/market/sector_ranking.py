@@ -105,5 +105,4 @@ def rank_sectors(
         except ServerError:
             r["swot"] = None
             r["swot_error"] = "AI analysis temporarily unavailable for this category. Try again in a moment."
-
     return results

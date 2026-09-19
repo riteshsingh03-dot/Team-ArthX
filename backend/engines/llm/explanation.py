@@ -2,6 +2,17 @@
 import os
 from dotenv import load_dotenv
 from google import genai
+import time
+from google.genai.errors import ServerError
+
+def call_gemini_with_retry(fn, *args, retries=2, base_delay=3, **kwargs):
+    for attempt in range(retries + 1):
+        try:
+            return fn(*args, **kwargs)
+        except ServerError:
+            if attempt == retries:
+                raise
+            time.sleep(base_delay * (attempt + 1))
 
 load_dotenv()
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
@@ -65,5 +76,9 @@ def generate_explanation(scheme, eligibility, loan, installment, retrieved_chunk
         retrieved_chunks=chunks_text,
     ) + f"\n\nSTYLE INSTRUCTION: {style_instruction}"
 
-    response = client.models.generate_content(model="gemini-3.6-flash", contents=prompt)
+    response = call_gemini_with_retry(
+        client.models.generate_content,
+        model="gemini-3.6-flash",
+        contents=prompt,
+    )
     return response.text

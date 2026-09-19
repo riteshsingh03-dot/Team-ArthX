@@ -590,6 +590,7 @@ function setupVoice() {
 }
 
 let seededLocations = [];
+let scanTimer = null;
 
 async function loadSeededLocations() {
   const stateSelect = document.getElementById("stateSelect");
@@ -795,10 +796,15 @@ if (loader) loader.hidden = false;
 if (contentEl) contentEl.innerHTML = "";
 if (sectionEl) sectionEl.scrollIntoView({ behavior: "smooth" });
 
+if (scanTimer) clearInterval(scanTimer);
+
+const compareBtn = document.getElementById("compareSectorsBtn");
+if (compareBtn) compareBtn.disabled = true;
+
 let elapsedSeconds = 0;
 const loadingTextEl = document.getElementById("sectorScanLoadingText");
 if (loadingTextEl) loadingTextEl.textContent = `Loading (0s)...`;
-const scanTimer = setInterval(() => {
+scanTimer = setInterval(() => {
   elapsedSeconds++;
   if (loadingTextEl) loadingTextEl.textContent = `Loading (${elapsedSeconds}s)...`;
 }, 1000);
@@ -818,11 +824,13 @@ try {
         const data = await response.json();
     clearInterval(scanTimer);
     if (loader) loader.hidden = true;
+    if (compareBtn) compareBtn.disabled = false;
     renderSectorScan(data);
 
   } catch (err) {
     clearInterval(scanTimer);
     if (loader) loader.hidden = true;
+    if (compareBtn) compareBtn.disabled = false;
     if (contentEl) contentEl.innerHTML = `<p style="color:red">Error: ${err.message}</p>`;
   }
 }
@@ -992,6 +1000,11 @@ function renderSectorScan(results) {
         <p><strong>Weaknesses:</strong> ${r.swot.weaknesses || 'N/A'}</p>
         <p><strong>Opportunities:</strong> ${r.swot.opportunities || 'N/A'}</p>
         <p><strong>Threats:</strong> ${r.swot.threats || 'N/A'}</p>
+      `;
+    } else if (r.swot_error) {
+      swotBlock = `
+        <hr style="border:0; border-top:1px solid #E2E8F0; margin:12px 0;">
+        <p style="color:#B34A3C; font-size:13.5px;"><em>${r.swot_error}</em></p>
       `;
     }
 

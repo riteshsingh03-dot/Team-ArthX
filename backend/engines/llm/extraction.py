@@ -3,9 +3,20 @@ import json
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+import time
+from google.genai.errors import ServerError
 
 load_dotenv()
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+
+def call_gemini_with_retry(fn, *args, retries=2, base_delay=3, **kwargs):
+    for attempt in range(retries + 1):
+        try:
+            return fn(*args, **kwargs)
+        except ServerError:
+            if attempt == retries:
+                raise
+            time.sleep(base_delay * (attempt + 1))
 
 EXTRACTION_PROMPT = """
 Extract structured information from the user's message about starting a business.
@@ -35,9 +46,10 @@ User message: "{message}"
 
 def extract_user_intent(message: str) -> dict:
     prompt = EXTRACTION_PROMPT.format(message=message)
-    response = client.models.generate_content(
-    model="gemini-3.6-flash",
-    contents=prompt,
-    config=types.GenerateContentConfig(response_mime_type="application/json"),
-)
+    response = call_gemini_with_retry(
+        client.models.generate_content,
+        model="gemini-3.6-flash",
+        contents=prompt,
+        config=types.GenerateContentConfig(response_mime_type="application/json"),
+    )
     return json.loads(response.text)
