@@ -5,6 +5,7 @@ from engines.market.mandi_price_service import get_mandi_price_mapping
 from engines.market.audience_service import get_target_audience_mapping
 from engines.market.competitor_service import get_stored_competitors, refresh_competitors, get_location
 from google.genai.errors import ServerError
+from engines.market.reach_service import get_market_reach_mapping
 
 ALL_CATEGORIES = list(BUSINESS_CATEGORY_NOTES.keys())
 
@@ -67,6 +68,12 @@ def rank_sectors(
     categories = categories or ALL_CATEGORIES
     loan = calculate_loan_structure(project_cost, margin_pct)
 
+    # Market Reach is location-level, not category-specific -- compute once, reuse for every category.
+    # competitor_count=None here since it varies by category; reach_mapping's own competitor-adjusted
+    # customer estimate below fills that per category.
+
+    base_reach_mapping = get_market_reach_mapping(location_id, district or village_name, None, None)
+
     results = []
     for category in categories:
         competitor_mapping = _get_competitor_mapping(location_id, category)
@@ -79,6 +86,7 @@ def rank_sectors(
             "competitor_mapping": competitor_mapping,
             "audience_mapping": audience_mapping,
             "mandi_mapping": mandi_mapping,
+            "market_reach_mapping": base_reach_mapping,
             "category_notes": category_notes,
             "fit_score": _score_category(competitor_mapping, audience_mapping),
         })

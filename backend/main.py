@@ -25,6 +25,8 @@ from engines.market.audience_service import get_target_audience_mapping
 
 from engines.financial.cashflow import simulate_survival
 
+from engines.market.reach_service import get_market_reach_mapping
+
 from engines.market.competitor_service import (
     refresh_competitors,
     get_stored_competitors,
@@ -133,6 +135,17 @@ def get_audience_mapping(location_id: int | None, fallback_district: str | None,
     competitor_count = competitor_mapping.get("competitor_count") if competitor_mapping else None
     return get_target_audience_mapping(district, business_category, competitor_count)
 
+def get_reach_mapping(location_id: int | None, fallback_district: str | None, fallback_village: str | None,
+                       business_category: str | None, competitor_mapping: dict | None) -> dict | None:
+    district = fallback_district or fallback_village
+    if location_id is not None:
+        try:
+            location = get_location(location_id)
+            district = location.get("district") or fallback_district
+        except ValueError:
+            pass
+    competitor_count = competitor_mapping.get("competitor_count") if competitor_mapping else None
+    return get_market_reach_mapping(location_id, district, business_category, competitor_count)
 
 @app.post("/feasibility")
 def get_feasibility(req: FeasibilityRequest):
@@ -155,6 +168,8 @@ def get_feasibility(req: FeasibilityRequest):
     eligibility = check_eligibility(user_profile, scheme["id"])
 
     competitor_mapping = get_competitor_mapping(req.location_id, req.business_category)
+    mandi_mapping = get_mandi_mapping(req.location_id, req.business_category)
+    reach_mapping = get_reach_mapping(req.location_id, req.state, None, req.business_category, competitor_mapping)
 
     try:
         loan = calculate_loan_structure(req.project_cost, req.margin_pct)
@@ -175,8 +190,9 @@ def get_feasibility(req: FeasibilityRequest):
         "installment": installment,
         "repayment_schedule": schedule,
         "competitor_mapping": competitor_mapping,
+        "mandi_mapping": mandi_mapping,
+        "market_reach_mapping": reach_mapping,
     }
-
 
 @app.post("/chat")
 def chat(req: ChatRequest):
@@ -214,6 +230,10 @@ def chat(req: ChatRequest):
     competitor_mapping = get_competitor_mapping(resolved_location_id, extracted.get("business_category"))
     mandi_mapping = get_mandi_mapping(resolved_location_id, extracted.get("business_category"))
     audience_mapping = get_audience_mapping(
+    resolved_location_id, extracted.get("district"), extracted.get("village_name"),
+    extracted.get("business_category"), competitor_mapping
+    )
+    reach_mapping = get_reach_mapping(
     resolved_location_id, extracted.get("district"), extracted.get("village_name"),
     extracted.get("business_category"), competitor_mapping
     )
@@ -261,6 +281,7 @@ def chat(req: ChatRequest):
         "competitor_mapping": competitor_mapping,
         "mandi_mapping": mandi_mapping,
         "audience_mapping": audience_mapping,
+        "market_reach_mapping": reach_mapping,
     }
 
 

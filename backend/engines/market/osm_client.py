@@ -71,6 +71,13 @@ CATEGORY_PRESETS = {
     "handicrafts": ("shop", "gift"), 
 }
 
+DISTRIBUTION_CHANNEL_TAGS = [
+    ("highway", "bus_stop"),
+    ("amenity", "bus_station"),
+    ("amenity", "marketplace"),
+    ("highway", "primary"),
+    ("highway", "secondary"),
+]
 
 def haversine_km(lat1, lon1, lat2, lon2):
     R = 6371.0
@@ -212,3 +219,38 @@ def build_osm_dataframe(lat, lon, category, radius_m=5000):
     if not df.empty:
         df = df.sort_values("distance_km").reset_index(drop=True)
     return df
+
+def fetch_distribution_channels(lat, lon, radius_m=7500):
+    """
+    Queries Overpass for distribution-channel infrastructure (bus stops,
+    bus stations, marketplaces, primary/secondary roads) within radius_m
+    of (lat, lon). Returns counts by channel type, not individual records --
+    Market Reach only needs density, not a stored dataframe.
+    """
+    filters = "".join(
+        f'nwr["{k}"="{v}"](around:{radius_m},{lat},{lon});\n'
+        for k, v in DISTRIBUTION_CHANNEL_TAGS
+    )
+    query = f"""
+    [out:json][timeout:25];
+    (
+    {filters}
+    );
+    out center tags;
+    """
+    data = _run_overpass_query(query)
+    elements = data.get("elements", [])
+
+    counts = {"bus_stops": 0, "bus_stations": 0, "markets": 0, "main_roads": 0}
+    for el in elements:
+        tags = el.get("tags", {})
+        if tags.get("highway") == "bus_stop":
+            counts["bus_stops"] += 1
+        elif tags.get("amenity") == "bus_station":
+            counts["bus_stations"] += 1
+        elif tags.get("amenity") == "marketplace":
+            counts["markets"] += 1
+        elif tags.get("highway") in ("primary", "secondary"):
+            counts["main_roads"] += 1
+
+    return counts
