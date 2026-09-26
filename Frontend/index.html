@@ -249,6 +249,14 @@
         </div>
         <button class="btn btn-primary" id="compareScenariosBtn" data-i18n="runScenarioBtn">Run Scenario Check</button>
       </div>
+
+      <div class="unified-card tool-card">
+        <div>
+          <h3 class="tool-title">Pricing Suggestion</h3>
+          <p class="field-hint">Get a suggested price for your product, using local market data where available.</p>
+        </div>
+        <button id="openPricingModalBtn" class="btn btn-primary">Get Price Suggestion</button>
+      </div>
     </section>
 
     <div id="scenarioResultBox" class="unified-card scenario-result"></div>
@@ -382,6 +390,30 @@
 
     <button class="btn btn-primary btn-block btn-green" id="runSimBtn" data-i18n="runSimBtn">Run Simulations</button>
     <div id="simulationResult" class="sim-result-box"></div>
+  </div>
+</div>
+
+<div id="pricingModalOverlay" class="auth-modal-overlay hidden">
+  <div class="auth-modal-content">
+    <button id="closePricingModalBtn" class="modal-close-x" aria-label="Close">&times;</button>
+    <h3 class="tool-title">Pricing Suggestion</h3>
+    <p class="field-hint">Uses the location you selected in "Business & Location Setup" on the Home tab. If none is selected, you'll get a generalized estimate instead.</p>
+
+    <div class="step-card">
+      <p class="step-label">Business Category</p>
+      <select id="pricingCategorySelect" class="form-select">
+        <option value="dairy">Dairy Farming</option>
+        <option value="tailoring">Tailoring</option>
+        <option value="grocery">Grocery Store</option>
+        <option value="retail">Retail</option>
+        <option value="textiles">Textiles</option>
+        <option value="food_processing">Food Processing</option>
+        <option value="handicrafts">Handicrafts</option>
+      </select>
+    </div>
+
+    <button class="btn btn-primary btn-block" id="runPricingBtn">Get Suggestion</button>
+    <div id="pricingResult" class="sim-result-box"></div>
   </div>
 </div>
 

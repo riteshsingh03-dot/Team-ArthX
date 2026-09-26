@@ -26,6 +26,7 @@ from engines.market.audience_service import get_target_audience_mapping
 from engines.financial.cashflow import simulate_survival
 
 from engines.market.reach_service import get_market_reach_mapping
+from engines.market.pricing_service import get_price_suggestion
 
 from engines.market.competitor_service import (
     refresh_competitors,
@@ -102,6 +103,11 @@ class SectorScanRequest(BaseModel):
     village_name: str | None = None
     experience_level: str = "intermediate"
     categories: list[str] | None = None
+
+class PricingSuggestionRequest(BaseModel):
+    business_category: str
+    location_id: int | None = None
+    district: str | None = None
 
 def get_competitor_mapping(location_id: int | None, business_category: str | None) -> dict | None:
     if location_id is None or business_category is None:
@@ -348,3 +354,9 @@ def sector_scan(req: SectorScanRequest):
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+@app.post("/pricing-suggestion")
+def pricing_suggestion(req: PricingSuggestionRequest):
+    competitor_mapping = get_competitor_mapping(req.location_id, req.business_category)
+    competitor_count = competitor_mapping.get("competitor_count") if competitor_mapping else None
+    return get_price_suggestion(req.location_id, req.district, req.business_category, competitor_count)

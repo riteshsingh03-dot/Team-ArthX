@@ -559,6 +559,57 @@ function setupUI() {
       }
     });
   }
+
+    // Pricing Suggestion Modal Logic
+  const openPricingBtn = document.getElementById("openPricingModalBtn");
+  const pricingModal = document.getElementById("pricingModalOverlay");
+  const closePricingBtn = document.getElementById("closePricingModalBtn");
+  const runPricingBtn = document.getElementById("runPricingBtn");
+
+  if (openPricingBtn && pricingModal) {
+    openPricingBtn.addEventListener("click", () => pricingModal.classList.remove("hidden"));
+    if (closePricingBtn) closePricingBtn.addEventListener("click", () => pricingModal.classList.add("hidden"));
+  }
+
+  if (runPricingBtn) {
+    runPricingBtn.addEventListener("click", async () => {
+      const category = document.getElementById("pricingCategorySelect").value;
+      const loc = getLocationFormValues();
+
+      const resultBox = document.getElementById("pricingResult");
+      resultBox.style.display = "block";
+      resultBox.innerHTML = "<em>Checking local market data...</em>";
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/pricing-suggestion`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            business_category: category,
+            location_id: loc.location_id,
+            district: loc.district || null
+          })
+        });
+        const data = await response.json();
+
+        if (data.based_on === "local_mandi_data") {
+          resultBox.innerHTML = `
+            <h4 style="margin: 0 0 8px 0;">Suggested Price</h4>
+            <p style="margin: 4px 0;">Suggested: <strong style="font-size:16px;">₹${data.suggested_price}</strong></p>
+            <p style="margin: 4px 0; font-size:13px; color:var(--text-light);">Local market average: ₹${data.avg_market_price} (adjusted ${data.competitor_adjustment_multiplier}x for nearby competition)</p>
+          `;
+        } else {
+          resultBox.innerHTML = `
+            <h4 style="margin: 0 0 8px 0;">Suggested Price (Generalized)</h4>
+            <p style="margin: 4px 0;">Estimated: <strong style="font-size:16px;">₹${data.suggested_price}</strong> (range ₹${data.price_range[0]}–₹${data.price_range[1]})</p>
+            <p style="margin: 4px 0; font-size:13px; color:var(--text-light);">${data.note}</p>
+          `;
+        }
+      } catch (e) {
+        resultBox.innerHTML = `<span style="color:red">Failed to fetch price suggestion.</span>`;
+      }
+    });
+  }
 }
 
 // Web Speech Voice Recognition
