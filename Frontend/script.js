@@ -925,6 +925,26 @@ function renderReport(data) {
     `;
   }
 
+  let mandiHTML = "";
+  if (data.mandi_mapping && data.mandi_mapping.avg_price) {
+    mandiHTML = `
+    <hr style="border: 0; border-top: 1px solid #E2E8F0; margin: 20px 0;">
+    <h3 style="margin-top:0">Local Market Price Benchmark</h3>
+    <p>Average local price: <strong>₹${data.mandi_mapping.avg_price}</strong> (live mandi data)</p>
+    `;
+  }
+
+  let reachHTML = "";
+  if (data.market_reach_mapping) {
+    const reach = data.market_reach_mapping;
+    reachHTML = `
+    <hr style="border: 0; border-top: 1px solid #E2E8F0; margin: 20px 0;">
+    <h3 style="margin-top:0">Market Reach (${reach.radius_km}km radius)</h3>
+    <p>Markets nearby: <strong>${reach.distribution_channels?.markets || 0}</strong> | Bus stops: <strong>${reach.distribution_channels?.bus_stops || 0}</strong> | Main roads: <strong>${reach.distribution_channels?.main_roads || 0}</strong></p>
+    ${reach.estimated_local_population ? `<p>Estimated local population: <strong>${reach.estimated_local_population.toLocaleString('en-IN')}</strong></p>` : ''}
+    `;
+  }
+
   let competitorHTML = "";
   if (data.competitor_mapping && data.competitor_mapping.nearest && data.competitor_mapping.nearest.length > 0) {
     competitorHTML = `
@@ -952,6 +972,8 @@ function renderReport(data) {
       <p><strong>Loan Amount (90%):</strong> ₹${loanAmount.toLocaleString('en-IN')}</p>
       <p><strong>Estimated Repayment:</strong> ₹${emi.toLocaleString('en-IN')} per installment</p>
       ${swotHTML}
+      ${mandiHTML}
+      ${reachHTML}
       ${competitorHTML}
     </div>
   `;
@@ -992,6 +1014,16 @@ function renderSectorScan(results) {
       ? `Nearby competitors: <strong>${competitor.competitor_count}</strong>`
       : `<em>Competitor data unavailable.</em>`;
 
+    const mandi = r.mandi_mapping;
+    const mandiLine = mandi && mandi.avg_price
+      ? `Local market price benchmark: <strong>₹${mandi.avg_price}</strong> (avg, live mandi data)`
+      : `<em>Live price data unavailable for this category/location.</em>`;
+
+    const reach = r.market_reach_mapping;
+    const reachLine = reach
+      ? `Market reach (${reach.radius_km}km radius): <strong>${reach.distribution_channels?.markets || 0}</strong> markets, <strong>${reach.distribution_channels?.bus_stops || 0}</strong> bus stops nearby${reach.estimated_local_population ? ` — est. local population ${reach.estimated_local_population.toLocaleString('en-IN')}` : ''}`
+      : `<em>Market reach data unavailable for this location.</em>`;
+
     let swotBlock = "";
     if (r.swot) {
       swotBlock = `
@@ -1013,6 +1045,8 @@ function renderSectorScan(results) {
         <h3 style="margin-top:0">${index + 1}. ${label}</h3>
         <p>${audienceLine}</p>
         <p>${competitorLine}</p>
+        <p>${mandiLine}</p>
+        <p>${reachLine}</p>
         <p style="font-size:13px; color:var(--text-light);">${notes?.seasonal_notes || ''}</p>
         ${swotBlock}
       </div>
