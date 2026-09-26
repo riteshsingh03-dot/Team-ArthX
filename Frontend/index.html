@@ -397,7 +397,26 @@
   <div class="auth-modal-content">
     <button id="closePricingModalBtn" class="modal-close-x" aria-label="Close">&times;</button>
     <h3 class="tool-title">Pricing Suggestion</h3>
-    <p class="field-hint">Uses the location you selected in "Business & Location Setup" on the Home tab. If none is selected, you'll get a generalized estimate instead.</p>
+    <p class="field-hint">Select your location and business category. If your location isn't in our seeded data, you'll get a generalized estimate instead.</p>
+
+    <div class="step-card">
+      <p class="step-label">Location</p>
+      <div class="input-grid input-grid-4">
+        <select id="pricingStateSelect" class="form-select">
+          <option value="">Loading states…</option>
+        </select>
+        <select id="pricingDistrictSelect" class="form-select" disabled>
+          <option value="">Select state first</option>
+        </select>
+        <select id="pricingBlockSelect" class="form-select" disabled>
+          <option value="">(no block data)</option>
+        </select>
+        <select id="pricingVillageSelect" class="form-select" disabled>
+          <option value="">Select district first</option>
+        </select>
+      </div>
+      <input type="hidden" id="pricingLocationIdInput" value="">
+    </div>
 
     <div class="step-card">
       <p class="step-label">Business Category</p>

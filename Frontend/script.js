@@ -571,10 +571,34 @@ function setupUI() {
     if (closePricingBtn) closePricingBtn.addEventListener("click", () => pricingModal.classList.add("hidden"));
   }
 
+      // Pricing Suggestion Modal Logic
+  const openPricingBtn = document.getElementById("openPricingModalBtn");
+  const pricingModal = document.getElementById("pricingModalOverlay");
+  const closePricingBtn = document.getElementById("closePricingModalBtn");
+  const runPricingBtn = document.getElementById("runPricingBtn");
+
+  if (openPricingBtn && pricingModal) {
+    openPricingBtn.addEventListener("click", () => {
+      pricingModal.classList.remove("hidden");
+      populatePricingStateSelect();
+    });
+    if (closePricingBtn) closePricingBtn.addEventListener("click", () => pricingModal.classList.add("hidden"));
+  }
+
+  document.getElementById("pricingStateSelect")?.addEventListener("change", handlePricingStateChange);
+  document.getElementById("pricingDistrictSelect")?.addEventListener("change", handlePricingDistrictChange);
+  document.getElementById("pricingBlockSelect")?.addEventListener("change", handlePricingBlockChange);
+  document.getElementById("pricingVillageSelect")?.addEventListener("change", () => {
+    document.getElementById("pricingLocationIdInput").value =
+      document.getElementById("pricingVillageSelect").value || "";
+  });
+
   if (runPricingBtn) {
     runPricingBtn.addEventListener("click", async () => {
       const category = document.getElementById("pricingCategorySelect").value;
-      const loc = getLocationFormValues();
+      const district = document.getElementById("pricingDistrictSelect").value || null;
+      const locationIdRaw = document.getElementById("pricingLocationIdInput").value;
+      const locationId = locationIdRaw ? parseInt(locationIdRaw, 10) : null;
 
       const resultBox = document.getElementById("pricingResult");
       resultBox.style.display = "block";
@@ -586,8 +610,8 @@ function setupUI() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             business_category: category,
-            location_id: loc.location_id,
-            district: loc.district || null
+            location_id: locationId,
+            district: district
           })
         });
         const data = await response.json();
@@ -736,6 +760,90 @@ function populateVillageSelect(matches) {
 
 function handleVillageSelectSeedChange() {
   document.getElementById("locationIdInput").value = document.getElementById("villageSelectSeed").value || "";
+}
+
+function populatePricingStateSelect() {
+  const select = document.getElementById("pricingStateSelect");
+  if (!select || seededLocations.length === 0) return;
+
+  const states = [...new Set(seededLocations.map(l => l.state).filter(Boolean))].sort();
+  select.innerHTML = `<option value="">Select State</option>` +
+    states.map(s => `<option value="${s}">${s}</option>`).join("");
+}
+
+function resetPricingDependentSelects(fromLevel) {
+  const districtSelect = document.getElementById("pricingDistrictSelect");
+  const blockSelect = document.getElementById("pricingBlockSelect");
+  const villageSelect = document.getElementById("pricingVillageSelect");
+
+  if (["state", "district"].includes(fromLevel)) {
+    districtSelect.innerHTML = `<option value="">Select state first</option>`;
+    districtSelect.disabled = true;
+  }
+  if (["state", "district", "block"].includes(fromLevel)) {
+    blockSelect.innerHTML = `<option value="">(no block data)</option>`;
+    blockSelect.disabled = true;
+  }
+  villageSelect.innerHTML = `<option value="">Select district first</option>`;
+  villageSelect.disabled = true;
+  document.getElementById("pricingLocationIdInput").value = "";
+}
+
+function handlePricingStateChange() {
+  const state = document.getElementById("pricingStateSelect").value;
+  resetPricingDependentSelects("district");
+  if (!state) return;
+
+  const districts = [...new Set(
+    seededLocations.filter(l => l.state === state).map(l => l.district).filter(Boolean)
+  )].sort();
+
+  const districtSelect = document.getElementById("pricingDistrictSelect");
+  districtSelect.innerHTML = `<option value="">Select District</option>` +
+    districts.map(d => `<option value="${d}">${d}</option>`).join("");
+  districtSelect.disabled = false;
+}
+
+function handlePricingDistrictChange() {
+  const state = document.getElementById("pricingStateSelect").value;
+  const district = document.getElementById("pricingDistrictSelect").value;
+  resetPricingDependentSelects("block");
+  if (!district) return;
+
+  const matches = seededLocations.filter(l => l.state === state && l.district === district);
+  const blocks = [...new Set(matches.map(l => l.block).filter(Boolean))].sort();
+  const blockSelect = document.getElementById("pricingBlockSelect");
+
+  if (blocks.length > 0) {
+    blockSelect.innerHTML = `<option value="">Select Block</option>` +
+      blocks.map(b => `<option value="${b}">${b}</option>`).join("");
+    blockSelect.disabled = false;
+  } else {
+    blockSelect.innerHTML = `<option value="">(no block data for this district)</option>`;
+    blockSelect.disabled = true;
+    populatePricingVillageSelect(matches);
+  }
+}
+
+function handlePricingBlockChange() {
+  const state = document.getElementById("pricingStateSelect").value;
+  const district = document.getElementById("pricingDistrictSelect").value;
+  const block = document.getElementById("pricingBlockSelect").value;
+
+  const matches = seededLocations.filter(l =>
+    l.state === state && l.district === district && (block ? l.block === block : true)
+  );
+  populatePricingVillageSelect(matches);
+}
+
+function populatePricingVillageSelect(matches) {
+  const villageSelect = document.getElementById("pricingVillageSelect");
+  const sorted = [...matches].sort((a, b) => a.village_name.localeCompare(b.village_name));
+
+  villageSelect.innerHTML = `<option value="">Select Village / City</option>` +
+    sorted.map(l => `<option value="${l.id}">${l.village_name}</option>`).join("");
+  villageSelect.disabled = false;
+  document.getElementById("pricingLocationIdInput").value = "";
 }
 
 function showManualLocationFallback() {
