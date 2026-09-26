@@ -560,17 +560,6 @@ function setupUI() {
     });
   }
 
-    // Pricing Suggestion Modal Logic
-  const openPricingBtn = document.getElementById("openPricingModalBtn");
-  const pricingModal = document.getElementById("pricingModalOverlay");
-  const closePricingBtn = document.getElementById("closePricingModalBtn");
-  const runPricingBtn = document.getElementById("runPricingBtn");
-
-  if (openPricingBtn && pricingModal) {
-    openPricingBtn.addEventListener("click", () => pricingModal.classList.remove("hidden"));
-    if (closePricingBtn) closePricingBtn.addEventListener("click", () => pricingModal.classList.add("hidden"));
-  }
-
       // Pricing Suggestion Modal Logic
   const openPricingBtn = document.getElementById("openPricingModalBtn");
   const pricingModal = document.getElementById("pricingModalOverlay");
