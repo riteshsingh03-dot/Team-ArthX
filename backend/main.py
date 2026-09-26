@@ -118,6 +118,7 @@ def get_competitor_mapping(location_id: int | None, business_category: str | Non
     except ValueError:
         return None  # bad location_id -- nothing we can do
     except RuntimeError as e:
+        print(f"[DEBUG competitor_service] Failed: {e}")
         return {"competitor_count": None, "nearest": [], "error": "osm_temporarily_unavailable", "detail": str(e)}
 
 def get_mandi_mapping(location_id: int | None, business_category: str | None) -> dict | None:

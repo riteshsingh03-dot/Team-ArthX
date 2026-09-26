@@ -63,5 +63,6 @@ def get_market_reach_mapping(location_id, district, business_category, competito
             business_category=business_category,
             competitor_count=competitor_count,
         )
-    except (ValueError, RuntimeError, TypeError):
+    except (ValueError, RuntimeError, TypeError) as e:
+        print(f"[DEBUG reach_service] Failed: {e}")
         return None

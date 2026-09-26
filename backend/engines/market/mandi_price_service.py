@@ -190,5 +190,6 @@ def get_mandi_price_mapping(location_id: int | None, business_category: str | No
             "avg_price": round(sum(prices) / len(prices), 2),
             "commodities": rows,
         }
-    except (ValueError, RuntimeError):
+    except (ValueError, RuntimeError) as e:
+        print(f"[DEBUG mandi_price_service] Failed: {e}")
         return None
