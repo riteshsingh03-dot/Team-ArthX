@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import json
+import time
 
 from engines.eligibility.scheme_selection import select_scheme
 from engines.eligibility.rules import check_eligibility
@@ -314,7 +315,18 @@ def list_journal_entries(start_date: str = None, end_date: str = None):
 
 @app.post("/journal/ask")
 def ask_journal(req: JournalQuestionRequest):
-    return answer_journal_question(req.question)
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            return answer_journal_question(req.question)
+        except ServerError:
+            if attempt < max_retries - 1:
+                time.sleep(2 * (attempt + 1))  # 2s, 4s backoff before retrying
+                continue
+            raise HTTPException(
+                status_code=503,
+                detail="Our AI model (a free-tier service) is currently experiencing high demand. Please try again in a moment."
+            )
 
 @app.post("/simulate/survival")
 def simulate_survival_endpoint(req: SurvivalSimRequest):

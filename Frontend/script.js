@@ -1251,7 +1251,13 @@ async function askJournal() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question: query })
     });
-    
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      answerDiv.innerHTML = `<span style="color:red">${errorData.detail || 'Our AI model (a free-tier service) is currently experiencing high demand. Please try again in a moment.'}</span>`;
+      return;
+    }
+
     const data = await response.json();
     
     if (data.error) {
@@ -1265,7 +1271,7 @@ async function askJournal() {
       answerDiv.innerHTML = `Query processed successfully.`;
     }
   } catch (e) {
-    answerDiv.innerHTML = `<span style="color:red">Failed to reach the AI.</span>`;
+    answerDiv.innerHTML = `<span style="color:red">Our AI model (a free-tier service) is currently experiencing high demand. Please try again in a moment.</span>`;
   }
 }
 
