@@ -1,11 +1,12 @@
 from engines.llm.business_knowledge import BUSINESS_CATEGORY_NOTES, get_category_notes
-from engines.llm.swot import generate_swot
 from engines.financial.loan import calculate_loan_structure
 from engines.market.mandi_price_service import get_mandi_price_mapping
 from engines.market.audience_service import get_target_audience_mapping
 from engines.market.competitor_service import get_stored_competitors, refresh_competitors, get_location
 from google.genai.errors import ServerError
 from engines.market.reach_service import get_market_reach_mapping
+from concurrent.futures import ThreadPoolExecutor
+from engines.llm.swot import generate_swot, generate_swot_batch
 
 ALL_CATEGORIES = list(BUSINESS_CATEGORY_NOTES.keys())
 
@@ -48,6 +49,19 @@ def _score_category(competitor_mapping, audience_mapping):
     competitor_count = competitor_mapping.get("competitor_count") or 0
     return estimated_customers - (competitor_count * 5)
 
+def _gather_category_data(location_id, district, village_name, category):
+    competitor_mapping = _get_competitor_mapping(location_id, category)
+    audience_mapping = _get_audience_mapping(location_id, district, village_name, category, competitor_mapping)
+    mandi_mapping = get_mandi_price_mapping(location_id, category)
+    category_notes = get_category_notes(category)
+    return {
+        "business_category": category,
+        "competitor_mapping": competitor_mapping,
+        "audience_mapping": audience_mapping,
+        "mandi_mapping": mandi_mapping,
+        "category_notes": category_notes,
+        "fit_score": _score_category(competitor_mapping, audience_mapping),
+    }
 
 def rank_sectors(
     location_id: int | None,
@@ -74,43 +88,42 @@ def rank_sectors(
 
     base_reach_mapping = get_market_reach_mapping(location_id, district or village_name, None, None)
 
-    results = []
-    for category in categories:
-        competitor_mapping = _get_competitor_mapping(location_id, category)
-        audience_mapping = _get_audience_mapping(location_id, district, village_name, category, competitor_mapping)
-        mandi_mapping = get_mandi_price_mapping(location_id, category)
-        category_notes = get_category_notes(category)
+    with ThreadPoolExecutor(max_workers=len(categories)) as executor:
+        futures = [
+            executor.submit(_gather_category_data, location_id, district, village_name, category)
+            for category in categories
+        ]
+        results = [f.result() for f in futures]
 
-        results.append({
-            "business_category": category,
-            "competitor_mapping": competitor_mapping,
-            "audience_mapping": audience_mapping,
-            "mandi_mapping": mandi_mapping,
-            "market_reach_mapping": base_reach_mapping,
-            "category_notes": category_notes,
-            "fit_score": _score_category(competitor_mapping, audience_mapping),
-        })
+    for r in results:
+        r["market_reach_mapping"] = base_reach_mapping
 
     results.sort(key=lambda r: r["fit_score"], reverse=True)
 
-    for r in results[:top_n_for_swot]:
-        try:
-            r["swot"] = generate_swot(
-                business_category=r["business_category"],
-                project_cost=project_cost,
-                loan_amount=loan["loan_amount"],
-                location={
-                    "village_name": village_name,
-                    "block": None,
-                    "district": district,
-                    "state": None,
-                },
-                experience_level=experience_level,
-                competitor_mapping=r["competitor_mapping"],
-                mandi_mapping=r["mandi_mapping"],
-                audience_mapping=r["audience_mapping"],
-            )
-        except ServerError:
+    top_results = results[:top_n_for_swot]
+    try:
+        swot_batch = generate_swot_batch(
+            categories_data=top_results,
+            location={
+                "village_name": village_name,
+                "block": None,
+                "district": district,
+                "state": None,
+            },
+            project_cost=project_cost,
+            loan_amount=loan["loan_amount"],
+            experience_level=experience_level,
+        )
+        for r in top_results:
+            category_swot = swot_batch.get(r["business_category"])
+            if category_swot is not None:
+                r["swot"] = category_swot
+            else:
+                r["swot"] = None
+                r["swot_error"] = "AI analysis for this category was skipped in the response. Try again in a moment."
+    except ServerError:
+        for r in top_results:
             r["swot"] = None
-            r["swot_error"] = "AI analysis temporarily unavailable for this category. Try again in a moment."
+            r["swot_error"] = "AI analysis temporarily unavailable for these categories. Try again in a moment."
+
     return results

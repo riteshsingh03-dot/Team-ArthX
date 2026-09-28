@@ -55,6 +55,37 @@ Ground every point in the facts given above — do not fabricate numbers or clai
 beyond what is provided. Use plain language suitable for a first-time entrepreneur.
 """
 
+BATCH_SWOT_PROMPT = """
+You are generating a SWOT analysis (Strengths, Weaknesses, Opportunities, Threats)
+for a rural micro-entrepreneur, for MULTIPLE candidate business categories, based
+ONLY on the facts given below for each one. Do NOT invent statistics, competitor
+numbers, or prices not present in this data. If a data point is marked
+"illustrative", treat it as an example figure and note that in your output where
+relevant rather than presenting it as confirmed fact.
+
+LOCATION: {village_name}, {block}, {district}, {state}
+PROJECT COST: {project_cost}
+LOAN AMOUNT: {loan_amount}
+
+CANDIDATE CATEGORIES AND THEIR LOCAL MARKET DATA:
+{category_blocks}
+
+Return ONLY valid JSON, no other text, matching exactly this shape -- one entry
+per category, keyed by the exact category name given above:
+{{
+  "<category_name>": {{
+    "strengths": "2-3 short bullet points as plain text, separated by newlines (\\n)",
+    "weaknesses": "2-3 short bullet points as plain text, separated by newlines (\\n)",
+    "opportunities": "2-3 short bullet points as plain text, separated by newlines (\\n)",
+    "threats": "2-3 short bullet points as plain text, separated by newlines (\\n)"
+  }},
+  ...
+}}
+
+Ground every point in the facts given for that specific category — do not mix up
+data between categories, and do not fabricate numbers or claims beyond what is
+provided. Use plain language suitable for a first-time entrepreneur.
+"""
 
 def generate_swot(
     business_category: str,
@@ -109,6 +140,73 @@ def generate_swot(
         is_illustrative=market_data.get("is_illustrative", True),
         seasonal_notes=category_notes["seasonal_notes"],
         supply_chain_risks=category_notes["supply_chain_risks"],
+    ) + f"\n\nSTYLE INSTRUCTION: {style_instruction}"
+
+    response = call_gemini_with_retry(
+        client.models.generate_content,
+        model="gemini-3.6-flash",
+        contents=prompt,
+        config=types.GenerateContentConfig(response_mime_type="application/json"),
+    )
+    return json.loads(response.text)
+
+def generate_swot_batch(
+    categories_data: list[dict],
+    location: dict,
+    project_cost: float,
+    loan_amount: float,
+    experience_level: str = "intermediate",
+) -> dict:
+    """
+    Same grounding rules as generate_swot, but scores several categories in a
+    single Gemini call instead of one call per category.
+
+    categories_data: list of dicts, each shaped like:
+        {
+            "business_category": str,
+            "competitor_mapping": dict | None,
+            "mandi_mapping": dict | None,
+            "audience_mapping": dict | None,
+        }
+
+    Returns: {category_name: {"strengths": str, "weaknesses": str,
+                               "opportunities": str, "threats": str}, ...}
+    """
+    style_instruction = EXPERIENCE_STYLE_GUIDANCE.get(
+        experience_level, EXPERIENCE_STYLE_GUIDANCE["intermediate"]
+    )
+
+    blocks = []
+    for entry in categories_data:
+        category = entry["business_category"]
+        category_notes = get_category_notes(category)
+        competitor_mapping = entry.get("competitor_mapping")
+        mandi_mapping = entry.get("mandi_mapping")
+        audience_mapping = entry.get("audience_mapping")
+
+        competitor_count = competitor_mapping.get("competitor_count") if competitor_mapping else "Not available"
+        avg_price = mandi_mapping.get("avg_price") if mandi_mapping else "Not available"
+        estimated_customers = audience_mapping.get("estimated_customers_for_you") if audience_mapping else "Not available"
+        is_illustrative = not (competitor_mapping or mandi_mapping)
+
+        blocks.append(
+            f"- CATEGORY: {category}\n"
+            f"  Existing competitors in this category locally: {competitor_count}\n"
+            f"  Average local price for this category: {avg_price}\n"
+            f"  Estimated potential customers for you: {estimated_customers}\n"
+            f"  Is this market data illustrative/seeded: {is_illustrative}\n"
+            f"  Seasonal demand pattern: {category_notes['seasonal_notes']}\n"
+            f"  Supply chain risk pattern: {category_notes['supply_chain_risks']}"
+        )
+
+    prompt = BATCH_SWOT_PROMPT.format(
+        village_name=location.get("village_name", "Unknown"),
+        block=location.get("block", "Unknown"),
+        district=location.get("district", "Unknown"),
+        state=location.get("state", "Unknown"),
+        project_cost=project_cost,
+        loan_amount=loan_amount,
+        category_blocks="\n\n".join(blocks),
     ) + f"\n\nSTYLE INSTRUCTION: {style_instruction}"
 
     response = call_gemini_with_retry(
