@@ -42,6 +42,8 @@ OVERPASS_ENDPOINTS = [
     "https://overpass.kumi.systems/api/interpreter",  # fallback mirror
 ]
 
+USER_AGENT = "SIH26091-BusinessAdvisor/1.0 (student project; contact: samriddhimaheshwari8@gmail.com)"
+
 COLUMNS = [
     "place_id", "name", "category", "latitude", "longitude", "distance_km",
     "rating", "review_count", "business_status", "address", "phone",
@@ -115,7 +117,7 @@ def _run_overpass_query(query, timeout=30, max_retries_per_endpoint=2):
     for endpoint in OVERPASS_ENDPOINTS:
         for attempt in range(max_retries_per_endpoint):
             try:
-                resp = requests.post(endpoint, data={"data": query}, timeout=timeout)
+                resp = requests.post(endpoint, data={"data": query}, headers={"User-Agent": USER_AGENT}, timeout=timeout)
                 if resp.status_code == 200:
                     return resp.json()
                 if resp.status_code == 429:
@@ -133,19 +135,31 @@ def _run_overpass_query(query, timeout=30, max_retries_per_endpoint=2):
     raise RuntimeError(f"All Overpass endpoints failed. Last error: {last_err}")
 
 
-def fetch_osm_nearby(lat, lon, category, radius_m=5000):
-    """
-    Queries Overpass for nodes/ways/relations matching the resolved
-    OSM tag within radius_m of (lat, lon). Returns the raw Overpass
-    JSON response.
-    """
-    tag_key, tag_val = resolve_category(category)
+CATEGORY_TAG_LISTS = {
+    "dairy": [("shop", "dairy"), ("shop", "farm"), ("shop", "convenience")],
+    "retail": [("shop", "convenience"), ("shop", "general"), ("shop", "supermarket"), ("shop", "variety_store")],
+    "textiles": [("shop", "clothes"), ("shop", "tailor"), ("craft", "tailor"), ("shop", "fabric"), ("shop", "boutique")],
+    "food_processing": [("shop", "bakery"), ("shop", "farm"), ("shop", "confectionery"), ("craft", "confectionery")],
+    "handicrafts": [("shop", "gift"), ("shop", "craft"), ("craft", "handicraft")],
+}
 
-    # nwr = node/way/relation, searches all three geometry types.
+
+def resolve_category_tags(category):
+    key = category.strip().lower().replace(" ", "_")
+    if key in CATEGORY_TAG_LISTS:
+        return CATEGORY_TAG_LISTS[key]
+    return [resolve_category(category)]
+
+
+def fetch_osm_nearby(lat, lon, category, radius_m=5000):
+    tags = resolve_category_tags(category)
+    parts = "\n      ".join(
+        f'nwr["{k}"="{v}"](around:{radius_m},{lat},{lon});' for k, v in tags
+    )
     query = f"""
     [out:json][timeout:25];
     (
-      nwr["{tag_key}"="{tag_val}"](around:{radius_m},{lat},{lon});
+      {parts}
     );
     out center tags;
     """

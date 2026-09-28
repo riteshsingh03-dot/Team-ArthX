@@ -126,6 +126,8 @@ CREATE TABLE IF NOT EXISTS journal_entries (
     notes TEXT,
     created_at TIMESTAMP DEFAULT now()
 );
+
+ALTER TABLE census_district_population ADD COLUMN IF NOT EXISTS area_km2 NUMERIC;
 """
 
 with engine.connect() as conn:

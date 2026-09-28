@@ -2,6 +2,17 @@ from sqlalchemy import text
 from db.connection import engine
 from engines.market.osm_client import build_osm_dataframe
 
+URBAN_DISTRICTS = {"bangalore"}  # use the tight 2 km radius here
+PLACE_ALIASES = {
+    "bengaluru": "bangalore",
+    "bengaluru urban": "bangalore",
+    "bengaluru rural": "bangalore rural",
+}
+
+def _normalize_place(name):
+    if not name:
+        return name
+    return PLACE_ALIASES.get(name.strip().lower(), name)
 
 def get_location(location_id: int) -> dict:
     query = text("SELECT * FROM locations WHERE id = :id")
@@ -23,13 +34,11 @@ def list_all_locations() -> list[dict]:
         rows = conn.execute(query).mappings().all()
     return [dict(r) for r in rows]
 
-def refresh_competitors(location_id: int, business_category: str, radius_m: int = 5000) -> dict:
-    """
-    Fetches live OSM competitor data for a location + category,
-    stores individual rows in market_competitors, and upserts the
-    aggregate count into market_seed_data.
-    """
+def refresh_competitors(location_id: int, business_category: str, radius_m: int | None = None) -> dict:
     location = get_location(location_id)
+    if radius_m is None:
+        is_urban = (location.get("district") or "").strip().lower() in URBAN_DISTRICTS
+        radius_m = 2000 if is_urban else 5000
     df = build_osm_dataframe(
         lat=float(location["latitude"]),
         lon=float(location["longitude"]),
@@ -113,6 +122,10 @@ def resolve_location_id(village_name: str = None, block: str = None, district: s
     Tries most specific (village) first, falls back to block, then district.
     Returns None if nothing matches -- caller must handle gracefully.
     """
+    village_name = _normalize_place(village_name)
+    block = _normalize_place(block)
+    district = _normalize_place(district)
+    
     with engine.connect() as conn:
         if village_name:
             row = conn.execute(text("""
