@@ -45,7 +45,8 @@ for loc in locations:
     time.sleep(DELAY_REACH)
 
 # --- PASS 2: Competitors (per location x category -- the big one) ---
-print("\n=== Competitor pass (up to 390 calls, run in chunks) ===")
+print("\n=== Competitor pass (run in chunks) ===")
+rate_limited = False
 for loc in locations:
     for category in ALL_CATEGORIES:
         key = f"{loc['id']}:{category}"
@@ -58,9 +59,12 @@ for loc in locations:
             save_progress(progress)
         except Exception as e:
             print(f"  {loc.get('village_name')} / {category} failed: {e}")
-            print("  Stopping -- rate limited. Rerun script later to resume from here.")
-            exit()
+            print("  Stopping competitor pass -- likely rate limited. Rerun later to resume.")
+            rate_limited = True
+            break
         time.sleep(DELAY_COMPETITOR)
+    if rate_limited:
+        break
 
 # --- PASS 3: Mandi prices (separate API, separate issue -- see note below) ---
 print("\n=== Mandi price pass ===")

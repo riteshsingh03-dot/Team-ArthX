@@ -31,7 +31,10 @@ Caveats (read before relying on this for real decisions):
    not walking/driving distance).
 """
 
+import os
 import time
+from dotenv import load_dotenv
+load_dotenv()
 import math
 import requests
 import pandas as pd
@@ -42,7 +45,7 @@ OVERPASS_ENDPOINTS = [
     "https://overpass.kumi.systems/api/interpreter",  # fallback mirror
 ]
 
-USER_AGENT = "SIH26091-BusinessAdvisor/1.0 (student project; contact: samriddhimaheshwari8@gmail.com)"
+USER_AGENT = os.environ.get("OSM_USER_AGENT", "SIH26091-BusinessAdvisor/1.0 (student project)")
 
 COLUMNS = [
     "place_id", "name", "category", "latitude", "longitude", "distance_km",
